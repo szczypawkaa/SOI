@@ -19,43 +19,37 @@ class MyMonitor(Monitor):
             self._cons_odd_cond
         ]
 
-    def put_even(self, element: int):
+    def _run(self, choosen_cond: Condition, action: callable, element=None):
         self.enter()
-        print("A1: wchodzędo monitora")
-        print("A1: sprawdzam warunek", self._buffer)
-        if (not self._prod_even_cond.can_do_action()):
-            print("A1: zatrzymałem się")
-            self.wait(self._prod_even_cond)
-            print("A1: ruszam")
+        print(f"{choosen_cond}: Wchodzę do monitora")
+        if (not choosen_cond.can_do_action()):
+            print(f"{choosen_cond}: zatrzymałem się")
+            self.wait(choosen_cond)
 
-        self._buffer.append(element)
-        print("A1: ", self._buffer)
+        action(element)
+        print(f"{choosen_cond}: ", self._buffer)
 
         for cond in self._all_cond:
-            if cond != self._prod_even_cond and cond.waiting_count > 0 and cond.can_do_action():
-                print("A1: Inny spełnia warunek")
+            if cond != choosen_cond and cond.waiting_count > 0 and cond.can_do_action():
+                print(f"{cond}: ruszam ponownie")
                 self.signal(cond)
-        print("A1: wychodzę z monitora")
+        print(f"{choosen_cond}: Wychodzę z monitora")
         self.leave()
+
+    def _prod_action(self, element):
+        self._buffer.append(element)
+
+    def _cons_even_action(self):
+        pass
+
+    def _cond_odd_action(self):
+        pass
+
+    def put_even(self, element: int):
+        self._run(self._prod_even_cond, self._prod_action, element)
 
     def put_odd(self, element: int):
-        self.enter()
-        print("A2: Wchodzę do monitora")
-        print("A2: sprawdzam warunek", self._buffer)
-        if (not self._prod_odd_cond.can_do_action()):
-            print("A2: zatrzymałem się")
-            self.wait(self._prod_odd_cond)
-            print("A2: ruszam")
-
-        self._buffer.append(element)
-        print("A2: ", self._buffer)
-
-        for cond in self._all_cond:
-            if cond != self._prod_even_cond and cond.waiting_count > 0 and cond.can_do_action():
-                print("A2: Inny spełnia warunek")
-                self.signal(cond)
-        print("A2: wychodzę z monitora")
-        self.leave()
+        self._run(self._prod_odd_cond, self._prod_action, element)
 
     def get_all_even(self):
         pass
@@ -70,6 +64,9 @@ class prodEvenCond(Condition):
         even_sum = sum(1 for x in self.monitor._buffer if x % 2 == 0)
         return even_sum < 10
 
+    def __str__(self):
+        return "A1"
+
 
 class prodOddCond(Condition):
 
@@ -77,6 +74,9 @@ class prodOddCond(Condition):
         even_count = sum(1 for x in self.monitor._buffer if x % 2 == 0)
         odd_count = sum(1 for x in self.monitor._buffer if x % 2 != 0)
         return even_count > odd_count
+
+    def __str__(self):
+        return "A2"
 
 
 class consEvenCond(Condition):
