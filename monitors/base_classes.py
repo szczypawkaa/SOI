@@ -15,7 +15,8 @@ class Semaphore:
 
 
 class Condition:
-    def __init__(self):
+    def __init__(self, monitor):
+        self.monitor = monitor
         self._w = Semaphore(0)
         self.waiting_count = 0
 
@@ -27,8 +28,7 @@ class Condition:
             self.waiting_count -= 1
             self._w.V()
             return True
-        else:
-            return False
+        return False
 
     @abstractmethod
     def can_do_action(self):
@@ -46,7 +46,7 @@ class Monitor:
         self._s.V()
 
     def wait(self, cond: Condition):
-        cond._waiting_count += 1
+        cond.waiting_count += 1
         self.leave()
         cond.wait()
 
