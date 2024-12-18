@@ -39,11 +39,13 @@ class MyMonitor(Monitor):
     def _prod_action(self, element):
         self._buffer.append(element)
 
-    def _cons_even_action(self):
-        pass
+    def _cons_even_action(self, element):
+        if self._buffer[-1] % 2 == 0:
+            self._buffer.pop()
 
-    def _cond_odd_action(self):
-        pass
+    def _cons_odd_action(self, element):
+        if self._buffer[-1] % 2 != 0:
+            self._buffer.pop()
 
     def put_even(self, element: int):
         self._run(self._prod_even_cond, self._prod_action, element)
@@ -51,11 +53,11 @@ class MyMonitor(Monitor):
     def put_odd(self, element: int):
         self._run(self._prod_odd_cond, self._prod_action, element)
 
-    def get_all_even(self):
-        pass
+    def get_even(self):
+        self._run(self._cons_even_cond, self._cons_even_action)
 
-    def get_all_odd(self):
-        pass
+    def get_odd(self):
+        self._run(self._cons_odd_cond, self._cons_odd_action)
 
 
 class prodEvenCond(Condition):
@@ -80,12 +82,19 @@ class prodOddCond(Condition):
 
 
 class consEvenCond(Condition):
-    pass
+    def can_do_action(self):
+        return len(self.monitor._buffer) >= 3
+
+    def __str__(self):
+        return "B1"
 
 
 class consOddCond(Condition):
-    pass
+    def can_do_action(self):
+        return len(self.monitor._buffer) >= 7
 
+    def __str__(self):
+        return "B2"
 
 #########################Functions######################################
 
@@ -106,15 +115,15 @@ def prod_odd_mod_50(monitor):
         time.sleep(1)
 
 
-def cons_even():
+def cons_even(monitor):
     while (1):
-        MyMonitor.get_all_even()
+        monitor.get_even()
         time.sleep(1)
 
 
-def cons_odd():
+def cons_odd(monitor):
     while (1):
-        MyMonitor.get_all_odd()
+        monitor.get_odd()
         time.sleep(1)
 
 
@@ -123,12 +132,18 @@ if __name__ == "__main__":
 
     prod_a1_thread = threading.Thread(target=prod_even_mod_50, args=(monitor,))
     prod_a2_thread = threading.Thread(target=prod_odd_mod_50, args=(monitor,))
+    cons_b1_thread = threading.Thread(target=cons_even, args=(monitor,))
+    cons_b2_thread = threading.Thread(target=cons_odd, args=(monitor,))
 
     prod_a1_thread.start()
     prod_a2_thread.start()
+    cons_b1_thread.start()
+    cons_b2_thread.start()
 
     prod_a1_thread.join()
     prod_a2_thread.join()
+    cons_b1_thread.join()
+    cons_b2_thread.join()
 
 
 #     # BUFFOR_MAX_LEN = 30
