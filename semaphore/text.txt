@@ -1,0 +1,14 @@
+Celem zadania jest napisanie programu tworzącego odpowiednie
+procesy na osobnych wątkach wykonujących różne typy operacji
+na wspólnym buforze liczbowym.
+• Procesy A1 generują kolejne liczby parzyste modulo 50,
+jeżeli w buforze jest mniej niż 10 liczb parzystych.
+• Procesy A2 generują kolejne liczby nieparzyste modulo 50,
+jeżeli liczb parzystych w buforze jest więcej niż nieparzystych.
+• Procesy B1 zjadają liczby parzyste pod warunkiem, że bufor
+zawiera co najmniej 3 liczby.
+• Procesy B2 zjadają liczby nieparzyste, pod warunkiem, że bufor
+zawiera co najmniej 7 liczb.
+Synchronizacja ma być zaimplementowana z wykorzystaniem5-ciu semaforów binarnych
+
+zadanie z monitorów identyczne, tylko zrealizowane z Monitorem i 4 Condition
