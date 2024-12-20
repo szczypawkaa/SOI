@@ -82,8 +82,7 @@ class ConsEven(Process):
 
     def action(self):
         global buffer
-        consumed_buffer = deque(x for x in buffer if x % 2 != 0)
-        buffer = consumed_buffer
+        buffer.popleft()
 
     def __str__(self):
         return 'B1'
@@ -95,8 +94,7 @@ class ConsOdd(Process):
 
     def action(self):
         global buffer
-        consumed_buffer = deque(x for x in buffer if x % 2 == 0)
-        buffer = consumed_buffer
+        buffer.popleft()
 
     def __str__(self):
         return 'B2'
@@ -112,14 +110,15 @@ def run(given_process: Process, all_processes, thread_id: int):
         mutex.P()
         if not process.condition():
             process.increase_num_of_waiting()
-            mutex.V()
             print(f"{str(process)} {thread_id}: Zatrzymałem się, ponieważ nie spełniam warunku")
+            mutex.V()
+
             process.mutex_P()
             print(f"{str(process)} {thread_id}: Ruszam dalej - już spełniam warunek")
             process.decrease_num_of_waiting()
 
         process.action()
-        print(f"{str(process)} {thread_id}: Wykonane,", buffer)
+        print(f"{str(process)} {thread_id}: Wykonane,", list(buffer))
 
         for other in other_processes:
             if other.num_of_waiting() > 0 and other.condition():
@@ -132,8 +131,8 @@ def run(given_process: Process, all_processes, thread_id: int):
 
 if __name__ == "__main__":
     BUFFOR_MAX_LEN = 30
-    # buffer = deque([i for i in range(BUFFOR_MAX_LEN)], maxlen=BUFFOR_MAX_LEN)
-    buffer = deque()
+    buffer = deque([i for i in range(BUFFOR_MAX_LEN)], maxlen=BUFFOR_MAX_LEN)
+    # buffer = deque()
     mutex = BinarySemaphore(1)
 
     prod_a1 = ProdEvenModulo50()
@@ -159,4 +158,3 @@ if __name__ == "__main__":
     cons_b1_thread.join()
     prod_a2_thread.join()
     cons_b2_thread.join()
-
