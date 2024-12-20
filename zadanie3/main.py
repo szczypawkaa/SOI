@@ -1,4 +1,3 @@
-from __future__ import annotations
 from semaphore import BinarySemaphore
 from collections import deque
 from abc import ABC, abstractmethod
@@ -100,8 +99,8 @@ class ConsOdd(Process):
         return 'B2'
 
 
-def run(given_process: Process, all_processes, thread_id: int):
-    process: Process = given_process
+def run(given_process, all_processes, thread_id):
+    process = given_process
     other_processes = [
         x for x in all_processes if x != given_process
     ]
@@ -131,8 +130,8 @@ def run(given_process: Process, all_processes, thread_id: int):
 
 if __name__ == "__main__":
     BUFFOR_MAX_LEN = 30
-    buffer = deque([i for i in range(BUFFOR_MAX_LEN)], maxlen=BUFFOR_MAX_LEN)
-    # buffer = deque()
+    # buffer = deque([i for i in range(BUFFOR_MAX_LEN)], maxlen=BUFFOR_MAX_LEN)
+    buffer = deque()
     mutex = BinarySemaphore(1)
 
     prod_a1 = ProdEvenModulo50()
