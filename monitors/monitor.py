@@ -40,6 +40,9 @@ if __name__ == "__main__":
     cons_b1_thread_v2 = threading.Thread(target=cons_even, args=(monitor, 2))
     cons_b2_thread_v2 = threading.Thread(target=cons_odd, args=(monitor, 2))
 
+    monitor.register_thread(prod_a1_thread, 1)
+    monitor.register_thread(prod_a2_thread, 2)
+
     prod_a1_thread.start()
     prod_a1_thread_v2.start()
     prod_a2_thread.start()
@@ -50,14 +53,11 @@ if __name__ == "__main__":
     cons_b2_thread_v2.start()
 
     prod_a1_thread.join()
-    prod_a1_thread_v2.join()
-    prod_a2_thread.join()
-    prod_a2_thread_v2.join()
-    cons_b1_thread.join()
-    cons_b1_thread_v2.join()
-    cons_b2_thread.join()
-    cons_b2_thread_v2.join()
+    # prod_a1_thread_v2.join()
+    # prod_a2_thread.join()
+    # prod_a2_thread_v2.join()
+    # cons_b1_thread.join()
+    # cons_b1_thread_v2.join()
+    # cons_b2_thread.join()
+    # cons_b2_thread_v2.join()
 
-
-#     # BUFFOR_MAX_LEN = 30
-#     # buffer = deque([i for i in range(BUFFOR_MAX_LEN)], maxlen=BUFFOR_MAX_LEN)

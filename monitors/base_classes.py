@@ -46,11 +46,11 @@ class Monitor:
     def leave(self):
         self._s.V()
 
-    def wait(self, cond: Condition):
+    def wait(self, cond):
         cond.waiting_count += 1
         self.leave()
         cond.wait()
 
-    def signal(self, cond: Condition):
+    def signal(self, cond):
         if (cond.signal()):
             self.enter()
