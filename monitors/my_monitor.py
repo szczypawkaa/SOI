@@ -1,5 +1,4 @@
-from __future__ import annotations
-from base_classes import Monitor, Condition
+from basic_classes import Monitor, Condition
 from collections import deque
 
 
@@ -28,6 +27,9 @@ class MyMonitor(Monitor):
             maxlen=MyMonitor.BUFFOR_MAX_LEN
             )
 
+    def buffer(self):
+        return self._buffer
+
     def put_even(self, thread_id):
         self._run(self._prod_even_cond, self._prod_even_action, thread_id)
 
@@ -40,7 +42,7 @@ class MyMonitor(Monitor):
     def get_odd(self, thread_id):
         self._run(self._cons_odd_cond, self._cons_action, thread_id)
 
-    def _run(self, choosen_cond: Condition, action: callable, thread_id):
+    def _run(self, choosen_cond, action, thread_id):
         self.enter()
         if (not choosen_cond.can_do_action()):
             print(f"{choosen_cond} {thread_id}: zatrzymałem się")
@@ -48,7 +50,7 @@ class MyMonitor(Monitor):
             print(f"{choosen_cond} {thread_id}: ruszam ponownie")
 
         action()
-        print(f"{choosen_cond} {thread_id}: ", self._buffer)
+        print(f"{choosen_cond} {thread_id}:", list(self._buffer))
 
         for cond in self._all_cond:
             if (
@@ -74,7 +76,7 @@ class MyMonitor(Monitor):
 class prodEvenCond(Condition):
 
     def can_do_action(self):
-        if len(self.monitor._buffer) >= MyMonitor.BUFFOR_MAX_LEN:
+        if len(self.monitor.buffer()) >= MyMonitor.BUFFOR_MAX_LEN:
             return False
         even_sum = sum(1 for x in self.monitor._buffer if x % 2 == 0)
         return even_sum < 10
@@ -86,10 +88,11 @@ class prodEvenCond(Condition):
 class prodOddCond(Condition):
 
     def can_do_action(self):
-        if len(self.monitor._buffer) >= MyMonitor.BUFFOR_MAX_LEN:
+        buffer = self.monitor.buffer()
+        if len(buffer) >= MyMonitor.BUFFOR_MAX_LEN:
             return False
-        even_count = sum(1 for x in self.monitor._buffer if x % 2 == 0)
-        odd_count = sum(1 for x in self.monitor._buffer if x % 2 != 0)
+        even_count = sum(1 for x in buffer if x % 2 == 0)
+        odd_count = sum(1 for x in buffer if x % 2 != 0)
         return even_count > odd_count
 
     def __str__(self):
@@ -98,7 +101,8 @@ class prodOddCond(Condition):
 
 class consEvenCond(Condition):
     def can_do_action(self):
-        return len(self.monitor._buffer) >= 3 and self.monitor._buffer[0] % 2 == 0
+        buffer = self.monitor.buffer()
+        return len(buffer) >= 3 and buffer[0] % 2 == 0
 
     def __str__(self):
         return "B1"
@@ -106,7 +110,8 @@ class consEvenCond(Condition):
 
 class consOddCond(Condition):
     def can_do_action(self):
-        return len(self.monitor._buffer) >= 7 and self.monitor._buffer[0] % 2 != 0
+        buffer = self.monitor.buffer()
+        return len(buffer) >= 7 and buffer[0] % 2 != 0
 
     def __str__(self):
         return "B2"

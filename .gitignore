@@ -1,0 +1,27 @@
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+
+
+# Ignore build directories
+build/
+dist/
+
+# Ignore IDE and editor settings
+.vscode/
+*.swp
+
+# Ignore OS generated files
+*.~
+*.bak
+*.tmp
+
+# Ignore cache
+.cache/
+
+# Ignore custom user files
+*.env
+*.local
+*.config
+*.bak
+
