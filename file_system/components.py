@@ -124,12 +124,13 @@ class Bitmap:
 
     def from_binary(self, data):
         # Odczyt bitów z danych (w postaci bajtów)
-        self.size = len(data) * 8
+        # self.size = len(data) * 8 nie muszę zmieniać
+        #       bo moja bitmapa ma stalą wartość
         self.map = list(struct.unpack(f'{len(data)}B', data))
 
     def info(self):
         print(f"Bitmap len : {len(self.map)}")
-        print(f"Bitmap: {self.map}")
+        # print(f"Bitmap: {self.map}")
 
 
 class DataBlock:

@@ -54,14 +54,13 @@ class FileSystem:
         self.superblock.info()
         self.inode_bitmap.info()
         self.data_blocks_bitmap.info()
-        # print(self.inode_bitmap.size)
-        # print(self.data_blocks_bitmap.size)
+        # print(self.data_blocks_table[3].content)
 
 #
 
 
 if __name__ == "__main__":
     fs = FileSystem("/home/szczypawka/Nauka/Python/SOI/file_system/filesystem.bin")
-    fs.create_new()
-    # fs.load_old()
+    # fs.create_new()
+    fs.load_old()
 
