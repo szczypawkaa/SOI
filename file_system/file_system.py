@@ -1,52 +1,40 @@
 import struct
+from components import Superblock, Inode, Bitmap, DataBlock
+from typing import List
 
 
 class FileSystem:
+    FILE_SYSTEM_SIZE = 100 * 1024 * 1024  # 100 MB
+    INODES_NUMBER = 1024
+    DATA_BLOCK_SIZE = 2 * 1024  # 2KB
+    DATA_BLOCKS_NUMBER = FILE_SYSTEM_SIZE // DATA_BLOCK_SIZE  # 50 * 1024
+
     def __init__(self, file_name):
         self.file_name = file_name
-        self.num = 1
-        self.date = 'today'
-        self.author = 'Olusiaaaa'
+        self.superblock = Superblock(FileSystem.FILE_SYSTEM_SIZE)
+        self.inode_table = None
+        self.inode_bitmap = None
+        self.data_blocks_bitmap = None
+        self.data_blocks: List(DataBlock) = []
 
-    # def create(self):
-    #     with open(self.file_name, 'wb') as fs:
+    def create_new(self):
+        with open(self.file_name, 'wb') as fs:
+            fs.write(self.superblock.to_binary())
+        self.superblock.info()
 
-    def to_binary(self):
-        date_bytes = self.date.ljust(20, '\x00').encode('utf-8')  # Dopełniamy do 20 znaków
-        author_bytes = self.author.ljust(20, '\x00').encode('utf-8')  # Dopełniamy do 20 znaków
+    def load_old(self):
+        with open(self.file_name, 'rb') as fs:
+            self.superblock.from_binary(fs.read(self.superblock.size()))
+        self.superblock.info()
+        # self.num_of_files = num_of_files
+        # self.last_modified = last_mod.decode('utf-8').strip('\x00')
+        # self.free_space = free_space
 
-        return struct.pack(
-            'I20s20s',
-            self.num,
-            date_bytes,
-            author_bytes
-        )
 
-    # @staticmethod
-    def from_binary(self, data):
-        num, date, author = struct.unpack('I20s20s', data)
-        date = date.decode('utf-8').strip('\x00')
-        author = author.decode('utf-8').strip('\x00')
-        return num, date, author
-
-    def create(self):
-        with open('file_name', 'wb') as fs:
-            bin_data = self.to_binary()
-            fs.write(bin_data)
-
-    def read(self, file_name):
-        with open(file_name, 'rb') as fs:
-            data = fs.read()
-
-        return self.from_binary(data)
+#
 
 
 if __name__ == "__main__":
-    fs = FileSystem("file_system")
-    # bin_data = fs.to_binary()
-    # print(bin_data)
-    # read_data = fs.from_binary(bin_data)
-    # print(read_data)
-
-    fs.create()
-    print(fs.read("file_name"))
+    fs = FileSystem("/home/szczypawka/Nauka/Python/SOI/file_system/filesystem.bin")
+    # fs.create_new()
+    fs.load_old()
