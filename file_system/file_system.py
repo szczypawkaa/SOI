@@ -56,11 +56,51 @@ class FileSystem:
         self.data_blocks_bitmap.info()
         # print(self.data_blocks_table[3].content)
 
-#
+
+    def create_directory(self, dir_name, parent_inode_idx=0):
+        inode_idx = self.inode_bitmap.find_free_inode_idx()
+
+        # zajęcie inode
+        self.inode_bitmap.take_idx(inode_idx)
+
+        # dane dla inoda:
+        dir_inode = self.inode_table[inode_idx]
+        dir_inode.create_directory()
+
+        # zwiększenie ilości plików w superbloku
+        self.superblock.increase_num_of_files()
+
+    def add_to_directory(self, dir_inode_idx, filename):
+        # znależć lub stworzyć datablock przyisany do dir_inode
+        # entry = f"{name}:{inode_index}\n".encode('utf-8')
+        # znaleźć wolne miejsce w data block i dopisać
+
+        # current_data = f.read(BLOCK_SIZE).rstrip(b'\x00')
+        # new_data = current_data + entry
+
+        # zwiększyć rozmiar directory (o zawartosć wpisu)
+        pass
+
+
+    def read_from_directory():
+        #  entries = []
+        # for entry in directory_data.split(b'\n'):
+        #     entry = entry.strip()
+        #     if entry:
+        #         parts = entry.decode('utf-8').split(':')
+        #         if len(parts) == 2:
+        #             entries.append(parts)
+        # return entries
+        pass
+
+
+    def alocate_data_blocks(self, file_data):
+        pass
 
 
 if __name__ == "__main__":
     fs = FileSystem("/home/szczypawka/Nauka/Python/SOI/file_system/filesystem.bin")
     # fs.create_new()
     fs.load_old()
+    fs.create_directory("root")
 

@@ -100,9 +100,12 @@ class Inode:
         max = self._max_num_of_blocks
         return struct.calcsize(f'20s20s?I{max}I')
 
-    def add_file(self):
+    def create_directory(self):
         # zmiana: last_modified, size, data_blocks_idx, is_dir
-        pass
+        self.created = datetime.now()
+        self.last_modified = datetime.now()
+        self.is_directory = True
+
 
     # def chmod(self):
     #     pass
@@ -117,6 +120,12 @@ class Bitmap:
         for idx, val in enumerate(self.map):
             if val == 0:
                 return idx
+
+    def take_idx(self, idx_number):
+        self.map[idx_number] = 1
+
+    def realease_idx(self, idx_number):
+        self.map[idx_number] = 0
 
     def to_binary(self):
         # Konwersja bitarray do postaci bajtów
