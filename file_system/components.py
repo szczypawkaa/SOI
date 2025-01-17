@@ -35,7 +35,7 @@ class Superblock:
         print(f"Last modified: {self.last_modified}")
         print(f"Free space: {self.free_space}")
 
-    def size(self):
+    def get_size(self):
         """Oblicz rozmiar superbloku w bajtach."""
         # Format struktury: 'I20sI' (jak w metodzie to_bytes/from_bytes)
         return struct.calcsize('I20sI')
@@ -59,31 +59,45 @@ class Superblock:
         self.free_space -= size
         self.update_last_modified()
 
+
 class Inode:
-    def __init__(self):
+    def __init__(self, max_blocks):
         # info o poszcególnym pliku/katalogu
-        self.created = None
-        self.last_modified = None
-        # self.permissions = None
-        self.size = 0
+        # max blocks = max_file size // block size = 100
+        self.created = datetime.now()
+        self.last_modified = datetime.now()
         self.is_directory = False
+        self.size = 0
         self.data_blocks_idx = []  #muszą być zapisane w odpowiedniej kolejności
+        self._max_num_of_blocks = max_blocks
 
     def to_binary(self):
-        # data_blocks_idx
-         # Zapisanie długości listy, a potem danych
-        # length = len(self.data_blocks_idx)
-        # Zapisujemy długość listy, a potem każdy element listy jako liczba całkowita
-        # return struct.pack('I', length) + b''.join([struct.pack('I', item) for item in self.data_blocks_idx])
+        max = self._max_num_of_blocks
+        all_data_blocks = self.data_blocks_idx + [0] * (max - len(self.data_blocks_idx))
+        return struct.pack(
+            f'20s20s?I{max}I',
+            self.created.strftime('%Y-%m-%d %H:%M:%S').ljust(20, '\x00').encode('utf-8'),
+            self.last_modified.strftime('%Y-%m-%d %H:%M:%S').ljust(20, '\x00').encode('utf-8'),
+            self.is_directory,
+            self.size,
+            *all_data_blocks
+        )
 
-        # return struct.pack(
-        #     '20s20s12sI'
-        # )
+    def from_binary(self, data):
+        max = self._max_num_of_blocks
+        created, last_mod, is_dir, size, *full_data_blocks = struct.unpack(f'20s20s?I{max}I', data)
 
-        pass
+        self.created = created.decode('utf-8').strip('\x00')
+        self.last_modified = last_mod.decode('utf-8').strip('\x00')
+        self.is_directory = is_dir
+        self.size = size
+        self.data_blocks_idx = [x for x in full_data_blocks if x != 0]
 
-    def from_binary(self):
-        pass
+    def get_size(self):
+        """Oblicz rozmiar jednego i-node'a w bajtach."""
+        # Format struktury: '20s20sI10I?' (jak w metodzie to_bytes/from_bytes)
+        max = self._max_num_of_blocks
+        return struct.calcsize(f'20s20s?I{max}I')
 
     def add_file(self):
         # zmiana: last_modified, size, data_blocks_idx, is_dir
