@@ -1,6 +1,6 @@
 import struct
 from datetime import datetime
-from bitarray import bitarray
+import math
 
 NUM_OF_INODES = 1024
 BYTES = 8
@@ -111,8 +111,7 @@ class Inode:
 class Bitmap:
     def __init__(self, size):
         self.size = size  # w bitach, a nie bajtach
-        self.map = bitarray(size)
-        self.map.setall(0)
+        self.map = [0] * math.ceil(size / 8)  # Bitmapa zajętości (w bajtach)
 
     def find_free_inode_idx(self):
         for idx, val in enumerate(self.map):
@@ -121,19 +120,25 @@ class Bitmap:
 
     def to_binary(self):
         # Konwersja bitarray do postaci bajtów
-        return self.map.tobytes()
+        return struct.pack(f'{len(self.map)}B', *self.map)
 
     def from_binary(self, data):
         # Odczyt bitów z danych (w postaci bajtów)
         self.size = len(data) * 8
-        self.map.frombytes(data)
+        self.map = list(struct.unpack(f'{len(data)}B', data))
 
     def info(self):
+        print(f"Bitmap len : {len(self.map)}")
         print(f"Bitmap: {self.map}")
 
 
 class DataBlock:
-    def __init__(self):
-        self.size = 0
-        self.content
+    def __init__(self, data_block_size):
+        self.size = data_block_size
+        self.content = b'\x00' * self.size  #bajty
 
+    def to_binary(self):
+        return self.content
+
+    def from_binary(self, data):
+        self.content = data

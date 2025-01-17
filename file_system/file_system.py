@@ -1,7 +1,6 @@
-import struct
 from components import Superblock, Inode, Bitmap, DataBlock
 from typing import List
-import os
+import math
 
 
 class FileSystem:
@@ -17,42 +16,52 @@ class FileSystem:
         self.superblock = Superblock(FileSystem.FILE_SYSTEM_SIZE)
         self.inode_table = [Inode(FileSystem.MAX_BLOCKS) for _ in range(FileSystem.INODES_NUMBER)]
         self.inode_bitmap = Bitmap(FileSystem.INODES_NUMBER)
-        self.data_blocks_bitmap = None
-        self.data_blocks: List(DataBlock) = []
+        self.data_blocks_table = [DataBlock(FileSystem.DATA_BLOCK_SIZE) for _ in range(FileSystem.DATA_BLOCKS_NUMBER)]
+        self.data_blocks_bitmap = Bitmap(FileSystem.DATA_BLOCKS_NUMBER)
 
     def create_new(self):
         with open(self.file_name, 'wb') as fs:
             fs.write(self.superblock.to_binary())
+
             for inode in self.inode_table:
                 fs.write(inode.to_binary())
+
             fs.write(self.inode_bitmap.to_binary())
+
+            for block in self.data_blocks_table:
+                fs.write(block.to_binary())
+
+            fs.write(self.data_blocks_bitmap.to_binary())
+
         self.superblock.info()
         self.inode_bitmap.info()
+        self.data_blocks_bitmap.info()
 
     def load_old(self):
         with open(self.file_name, 'rb') as f:
-            # data = f.read(self.superblock.get_size())
-            # print(f'Wczytano {len(data)} bajtów dla superblock')
-            # self.superblock.from_binary(data)
             self.superblock.from_binary(f.read(self.superblock.get_size()))
+
             for inode in self.inode_table:
-                # print(f'Aktualna pozycja w pliku: {f.tell()}')
-                # print(f'Pozostałe bajty w pliku: {self.file_name} - {os.path.getsize(self.file_name) - f.tell()}')
                 inode.from_binary(f.read(inode.get_size()))
-                # data = f.read(inode.get_size())
-                # print(f'Wczytano {len(data)} bajtów dla inode')
-                # inode.from_binary(data)
-            self.inode_bitmap.from_binary(f.read(self.inode_bitmap.size))
+
+            self.inode_bitmap.from_binary(f.read(math.ceil(self.inode_bitmap.size // 8) ))
+
+            for block in self.data_blocks_table:
+                block.from_binary(f.read(block.size))
+
+            self.data_blocks_bitmap.from_binary(f.read(math.ceil(self.data_blocks_bitmap.size // 8)))
+
         self.superblock.info()
+        self.inode_bitmap.info()
+        self.data_blocks_bitmap.info()
+        # print(self.inode_bitmap.size)
+        # print(self.data_blocks_bitmap.size)
 
 #
 
 
 if __name__ == "__main__":
     fs = FileSystem("/home/szczypawka/Nauka/Python/SOI/file_system/filesystem.bin")
-    # fs.create_new()
-    fs.load_old()
-    # fs.superblock.increase_num_of_files()
-    # fs.superblock.info()
-    # fs.superblock.decrease_num_of_files()
-    # fs.superblock.info()
+    fs.create_new()
+    # fs.load_old()
+
