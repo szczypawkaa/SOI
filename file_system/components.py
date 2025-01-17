@@ -1,5 +1,6 @@
 import struct
 from datetime import datetime
+from bitarray import bitarray
 
 NUM_OF_INODES = 1024
 BYTES = 8
@@ -66,7 +67,7 @@ class Inode:
         # max blocks = max_file size // block size = 100
         self.created = datetime.now()
         self.last_modified = datetime.now()
-        self.is_directory = False
+        self.is_directory = 1
         self.size = 0
         self.data_blocks_idx = []  #muszą być zapisane w odpowiedniej kolejności
         self._max_num_of_blocks = max_blocks
@@ -75,7 +76,7 @@ class Inode:
         max = self._max_num_of_blocks
         all_data_blocks = self.data_blocks_idx + [0] * (max - len(self.data_blocks_idx))
         return struct.pack(
-            f'20s20s?I{max}I',
+            f'20s20sII{max}I',
             self.created.strftime('%Y-%m-%d %H:%M:%S').ljust(20, '\x00').encode('utf-8'),
             self.last_modified.strftime('%Y-%m-%d %H:%M:%S').ljust(20, '\x00').encode('utf-8'),
             self.is_directory,
@@ -85,7 +86,7 @@ class Inode:
 
     def from_binary(self, data):
         max = self._max_num_of_blocks
-        created, last_mod, is_dir, size, *full_data_blocks = struct.unpack(f'20s20s?I{max}I', data)
+        created, last_mod, is_dir, size, *full_data_blocks = struct.unpack(f'20s20sII{max}I', data)
 
         self.created = created.decode('utf-8').strip('\x00')
         self.last_modified = last_mod.decode('utf-8').strip('\x00')
@@ -109,13 +110,26 @@ class Inode:
 
 class Bitmap:
     def __init__(self, size):
-        self.size = size
-        self.map = [0] * size
+        self.size = size  # w bitach, a nie bajtach
+        self.map = bitarray(size)
+        self.map.setall(0)
 
     def find_free_inode_idx(self):
         for idx, val in enumerate(self.map):
             if val == 0:
                 return idx
+
+    def to_binary(self):
+        # Konwersja bitarray do postaci bajtów
+        return self.map.tobytes()
+
+    def from_binary(self, data):
+        # Odczyt bitów z danych (w postaci bajtów)
+        self.size = len(data) * 8
+        self.map.frombytes(data)
+
+    def info(self):
+        print(f"Bitmap: {self.map}")
 
 
 class DataBlock:
