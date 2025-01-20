@@ -88,8 +88,8 @@ class Inode:
         max = self._max_num_of_blocks
         created, last_mod, is_dir, size, *full_data_blocks = struct.unpack(f'20s20sII{max}I', data)
 
-        self.created = created.decode('utf-8').strip('\x00')
-        self.last_modified = last_mod.decode('utf-8').strip('\x00')
+        self.created = datetime.strptime(created.decode('utf-8').strip('\x00'), "%Y-%m-%d %H:%M:%S")
+        self.last_modified = datetime.strptime(last_mod.decode('utf-8').strip('\x00'), "%Y-%m-%d %H:%M:%S")
         self.is_directory = is_dir
         self.size = size
         self.data_blocks_idx = [x for x in full_data_blocks if x != 0]
