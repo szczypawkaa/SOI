@@ -149,6 +149,35 @@ class FileSystem:
         # zmniejszyć rozmiar directory (o zawartosć wpisu)
         self.superblock.decrease_num_of_files()
 
+    def add_file(self, file_name, file_data, dir_name=None):
+        if dir_name is None:
+            dir_name = self._current_directiory_name
+
+        # parent_inode_idx = self._find_file_idx_by_name(dir_name)
+        parent_inode_idx = self._current_directiory_idx
+
+        inode_idx = self.inode_bitmap.find_free_inode_idx()
+        data_block_idx = self.data_blocks_bitmap.find_free_inode_idx()
+        # zajęcie inode
+        self.inode_bitmap.take_idx(inode_idx)
+
+        # dane dla inoda:
+        # dir_inode = self.inode_table[inode_idx]
+        # dir_inode.create_directory()
+        file_inode = self.inode_table[inode_idx]
+
+        # zajęcie bloku danych
+        self.data_blocks_bitmap.take_idx(data_block_idx)
+        file_inode.data_blocks_idx.append(data_block_idx)
+
+        # dodanie do bloku danych treści
+        file_data_block = self.data_blocks_table[data_block_idx]
+        file_data_block.new_content(file_data)
+
+        # zwiększenie ilości plików w superbloku
+        self.add_to_directory(parent_inode_idx, file_name, inode_idx)
+
+
     def add_to_directory(self, dir_inode_idx, filename, file_inode_idx=None):
         if file_inode_idx is None:
             file_inode_idx = self.inode_bitmap.find_free_inode_idx()
@@ -181,8 +210,10 @@ class FileSystem:
         # print(entries)
         return entries
 
-    def _find_file_idx_by_name(self, file_name):
-        entries = self.read_from_directory(self._current_directiory_idx)
+    def _find_file_idx_by_name(self, file_name, directory_idx=None):
+        if directory_idx is None:
+            directory_idx = self._current_directiory_idx
+        entries = self.read_from_directory(directory_idx)
         for name, idx in entries:
             if name == file_name:
                 return int(idx)
@@ -211,6 +242,20 @@ class FileSystem:
     def alocate_data_blocks(self, file_data):
         pass
 
+    def copy_file_to_otside_system(self, file_name):
+        outside_path = f"/home/szczypawka/Nauka/Python/SOI/file_system/{file_name}"
+        inode_idx = self._find_file_idx_by_name(file_name)
+        inode = self.inode_table[inode_idx]
+        data_blocks_idx = inode.data_blocks_idx
+        with open(outside_path, 'wb') as f:
+            # znależć file_idx
+            # znaleźć data_block idx
+            # znaleźć datablock z i wpisać tu
+            for block_idx in data_blocks_idx:
+                block = self.data_blocks_table[block_idx]
+
+                f.write(block.content.rstrip(b'\x00'))
+
 
 if __name__ == "__main__":
     fs = FileSystem("/home/szczypawka/Nauka/Python/SOI/file_system/filesystem.bin")
@@ -219,12 +264,13 @@ if __name__ == "__main__":
     fs.load_old()
     fs.pwd()
     fs.ls()
+    # fs.add_file("heloł.txt", "Witam was wszystkich")
     # fs.create_directory("rootek5")
     # fs.create_directory("rootek2")
-    fs.remove_directory("rootek1")
-    fs.pwd()
+    # fs.remove_directory("rootek1")
+    # fs.pwd()
     fs.ls()
-
+    fs.copy_file_to_otside_system("heloł.txt")
     # fs.read_from_directory(1)
     # fs.superblock.info()
     # fs.create_directory("home2")

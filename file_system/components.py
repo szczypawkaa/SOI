@@ -156,6 +156,16 @@ class DataBlock:
         self.content = data
 
     def new_content(self, n_content):
+        if isinstance(n_content, str):
+            # Jeśli dane są w formacie str, zakoduj je na bytes i dopełnij zerami.
+            encoded_content = n_content.encode('utf-8')
+            self.content = encoded_content + b'\x00' * (self.size - len(encoded_content))
+        elif isinstance(n_content, bytes):
+            # Jeśli dane są już w formacie bytes, dopełnij je zerami.
+            self.content = n_content + b'\x00' * (self.size - len(n_content))
+        else:
+            raise ValueError("n_content must be of type str or bytes")
+
     #     n_content = n_content.encode('utf-8')  # Konwertuj na bajty
     # elif not isinstance(n_content, bytes):
     #     raise ValueError("Expected a string or bytes as input for new_content")
@@ -163,5 +173,6 @@ class DataBlock:
     # # Wypełnij zerami do pełnego rozmiaru bloku
     # self.content = n_content + b'\x00' * (self.size - len(n_content))
 
-        encoded = n_content.encode('utf-8')
-        self.content = encoded + b'\x00' * (self.size - len(encoded))
+
+        # encoded = n_content.encode('utf-8')
+        # self.content = encoded + b'\x00' * (self.size - len(encoded))
