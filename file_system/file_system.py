@@ -168,31 +168,35 @@ class FileSystem:
         if file_inode_idx is None:
             file_inode_idx = self.inode_bitmap.find_free_inode_idx()
         # znależć lub stworzyć datablock przyisany do dir_inode
-        entry = f"{filename}:{file_inode_idx}\n".encode('utf-8')
+        entry = f"{filename}:{file_inode_idx}\n"
         # znaleźć wolne miejsce w data block i dopisać
         block_idx = self.inode_table[dir_inode_idx].data_blocks_idx[0]
 
-        with open(self.file_name, 'rb') as f:
-            f.read(self._data_block_offset(block_idx))
-            current_data = f.read(FileSystem.DATA_BLOCK_SIZE).rstrip(b'\x00')
-
+        # with open(self.file_name, 'rb') as f:
+        #     f.read(self._data_block_offset(block_idx))
+        #     current_data = f.read(FileSystem.DATA_BLOCK_SIZE).rstrip(b'\x00')
+        current_data = self.data_blocks_table[block_idx].content
+        current_data = current_data.rstrip(b'\x00').decode('utf-8')
         new_data = current_data + entry
-        with open(self.file_name, 'r+b') as f:
-            f.read(self._data_block_offset(block_idx))
-            f.write(new_data)
+
+        self.data_blocks_table[block_idx].new_content(new_data)
+        # with open(self.file_name, 'r+b') as f:
+        #     f.read(self._data_block_offset(block_idx))
+        #     f.write(new_data)
 
         # zwiększyć rozmiar directory (o zawartosć wpisu)
         self.superblock.increase_num_of_files()
-
 
     def read_from_directory(self, directory_inode_idx):
         directory_inode = self.inode_table[directory_inode_idx]
         block_idx = directory_inode.data_blocks_idx[0]
 
-        with open(self.file_name, 'rb') as f:
-            f.read(self._data_block_offset(block_idx))
-            self.data_blocks_table[block_idx].from_binary(f.read(FileSystem.DATA_BLOCK_SIZE))
-            directory_data = self.data_blocks_table[block_idx].content
+        # with open(self.file_name, 'rb') as f:
+        #     f.read(self._data_block_offset(block_idx))
+        #     self.data_blocks_table[block_idx].from_binary(f.read(FileSystem.DATA_BLOCK_SIZE))
+        #     directory_data = self.data_blocks_table[block_idx].content
+
+        directory_data = self.data_blocks_table[block_idx].content
 
         entries = []
         for entry in directory_data.rstrip(b'\x00').split(b'\n'):
@@ -242,8 +246,8 @@ if __name__ == "__main__":
     fs.load_old()
     fs.pwd()
     fs.ls()
+    # fs.create_directory("rootek1")
     # fs.create_directory("rootek2")
-    # fs.create_directory("rootek3")
     fs.remove_directory("rootek3")
     fs.pwd()
     fs.ls()
