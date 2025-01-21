@@ -269,22 +269,13 @@ if __name__ == "__main__":
     # fs.create_directory("rootek2")
     # fs.remove_directory("rootek1")
     # fs.pwd()
+
+
+    file = "/home/szczypawka/Nauka/Python/SOI/file_system/krab.png"
+    with open(file, "rb") as f:
+        file_content = f.read()
+        fs.add_file("krabik.png", file_content)
     fs.ls()
-    fs.copy_file_to_otside_system("heloł.txt")
-    # fs.read_from_directory(1)
-    # fs.superblock.info()
-    # fs.create_directory("home2")
-    # fs.read_from_directory(1)
-    # fs.superblock.info()
-    # fs.add_to_directory(2, "bejbe2")
-    # fs.add_to_directory(1, "bejbee2")
-    # fs.read_from_directory(1)
-    # fs.read_from_directory(2)
-    # fs.superblock.info()
-    # fs.remove_directory("home2")
-    # fs.read_from_directory(1)
+    fs.copy_file_to_otside_system("krabik.png")
 
     fs.save()
-
-    pass
-
