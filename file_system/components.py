@@ -21,14 +21,16 @@ class Superblock:
         return struct.pack(
             'I20sI',
             self.num_of_files,
-            self.last_modified.strftime('%Y-%m-%d %H:%M:%S').ljust(20, '\x00').encode('utf-8'),  #trzeba sformatować
+            self.last_modified.strftime('%Y-%m-%d %H:%M:%S').ljust(20, '\x00').encode('utf-8'),
             self.free_space
         )
 
     def from_binary(self, data):
         num_of_files, last_mod, free_space = struct.unpack('I20sI', data)
         self.num_of_files = num_of_files
-        self.last_modified = last_mod.decode('utf-8').strip('\x00')
+        # self.created = datetime.strptime(created.decode('utf-8').strip('\x00'), "%Y-%m-%d %H:%M:%S")
+        self.last_modified = datetime.strptime(last_mod.decode('utf-8').strip('\x00'), "%Y-%m-%d %H:%M:%S")
+        # self.last_modified = datatime.last_mod.decode('utf-8').strip('\x00')
         self.free_space = free_space
 
     def info(self):
@@ -152,3 +154,14 @@ class DataBlock:
 
     def from_binary(self, data):
         self.content = data
+
+    def new_content(self, n_content):
+    #     n_content = n_content.encode('utf-8')  # Konwertuj na bajty
+    # elif not isinstance(n_content, bytes):
+    #     raise ValueError("Expected a string or bytes as input for new_content")
+
+    # # Wypełnij zerami do pełnego rozmiaru bloku
+    # self.content = n_content + b'\x00' * (self.size - len(n_content))
+
+        encoded = n_content.encode('utf-8')
+        self.content = encoded + b'\x00' * (self.size - len(encoded))

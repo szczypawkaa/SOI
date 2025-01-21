@@ -18,7 +18,29 @@ class FileSystem:
         self.inode_bitmap = Bitmap(FileSystem.INODES_NUMBER)
         self.data_blocks_table = [DataBlock(FileSystem.DATA_BLOCK_SIZE) for _ in range(FileSystem.DATA_BLOCKS_NUMBER)]
         self.data_blocks_bitmap = Bitmap(FileSystem.DATA_BLOCKS_NUMBER)
-        self._data_blocks_offset = None
+
+        self._current_directiory_idx = 1  #root
+        self._current_directiory_name = "root"
+        # self._data_blocks_offset = self._datablocks_offset()
+
+    def _data_block_offset(self, block_idx):
+        superblock_size = self.superblock.get_size()
+        inode_table_size = FileSystem.INODES_NUMBER * self.inode_table[0].get_size()
+        inode_bitmap_size = math.ceil(self.inode_bitmap.size / 8)
+        data_blocks_bitmap_size = math.ceil(self.data_blocks_bitmap.size / 8)
+
+        # przechodzę przez kolejne bloki danych, aż będę przed odpowiednim
+        blocks = block_idx * FileSystem.DATA_BLOCK_SIZE
+
+        total_offset = (
+            superblock_size +
+            inode_table_size +
+            inode_bitmap_size +
+            data_blocks_bitmap_size +
+            blocks
+        )
+
+        return total_offset
 
     def save(self):
         with open(self.file_name, 'wb') as fs:
@@ -43,7 +65,11 @@ class FileSystem:
 
     def load_old(self):
         with open(self.file_name, 'rb') as f:
-            self.superblock.from_binary(f.read(self.superblock.get_size()))
+            # self.superblock.from_binary(f.read(self.superblock.get_size()))
+            data = f.read(self.superblock.get_size())
+            print(f'Wczytano {len(data)} bajtów dla superblock')
+            self.superblock.from_binary(data)
+
 
             for inode in self.inode_table:
                 inode.from_binary(f.read(inode.get_size()))
@@ -59,7 +85,7 @@ class FileSystem:
         self.data_blocks_bitmap.info()
         # print(self.data_blocks_table[3].content)
 
-    # def save_file_system(self):
+
     def create_root_dir(self):
         self.inode_bitmap.take_idx(0)
         self.data_blocks_bitmap.take_idx(0)
@@ -92,50 +118,14 @@ class FileSystem:
         dir_inode.data_blocks_idx.append(data_block_idx)
 
         # zwiększenie ilości plików w superbloku
-        # self.superblock.increase_num_of_files()
         self.add_to_directory(parent_inode_idx, dir_name, inode_idx)
 
-    def add_to_directory(self, dir_inode_idx, filename, file_inode_idx=None):
-        if file_inode_idx is None:
-            file_inode_idx = self.inode_bitmap.find_free_inode_idx()
-        # znależć lub stworzyć datablock przyisany do dir_inode
-        entry = f"{filename}:{file_inode_idx}\n".encode('utf-8')
-        # znaleźć wolne miejsce w data block i dopisać
-        block_idx = self.inode_table[dir_inode_idx].data_blocks_idx[0]
+    def remove_directory(self, dir_name, parent_inode_idx=1):
+        parent_inode = self.inode_table[parent_inode_idx]
+        block_idx = parent_inode.data_blocks_idx[0]
 
         with open(self.file_name, 'rb') as f:
-
-            # offset
-            f.read(self.superblock.get_size())
-            f.read(FileSystem.INODES_NUMBER * self.inode_table[0].get_size())
-            f.read(math.ceil(self.inode_bitmap.size // 8))
-            f.read(math.ceil(self.data_blocks_bitmap.size // 8))
-            f.read(block_idx * FileSystem.DATA_BLOCK_SIZE)
-
-            current_data = f.read(FileSystem.DATA_BLOCK_SIZE).rstrip(b'\x00')
-
-        new_data = current_data + entry
-        with open(self.file_name, 'r+b') as f:
-
-            # offset
-            f.read(self.superblock.get_size())
-            f.read(FileSystem.INODES_NUMBER * self.inode_table[0].get_size())
-            f.read(math.ceil(self.inode_bitmap.size // 8))
-            f.read(math.ceil(self.data_blocks_bitmap.size // 8))
-            f.read(block_idx * FileSystem.DATA_BLOCK_SIZE)
-
-            f.write(new_data)
-
-        # zwiększyć rozmiar directory (o zawartosć wpisu)
-        self.superblock.increase_num_of_files()
-
-
-
-    def read_from_directory(self, directory_inode_idx):
-        directory_inode = self.inode_table[directory_inode_idx]
-        block_idx = directory_inode.data_blocks_idx[0]
-
-        with open(self.file_name, 'rb') as f:
+            # f.read(self._data_block_offset(block_idx))
 
             # offset
             f.read(self.superblock.get_size())
@@ -146,6 +136,64 @@ class FileSystem:
 
             self.data_blocks_table[block_idx].from_binary(f.read(FileSystem.DATA_BLOCK_SIZE))
             directory_data = self.data_blocks_table[block_idx].content
+
+        new_data = ""
+        deleted_idx = 0
+        for entry in directory_data.rstrip(b'\x00').split(b'\n'):
+            entry = entry.strip()
+            if entry:
+                parts = entry.decode('utf-8').split(':')
+                if parts[0] != dir_name and len(parts) == 2:
+                    new_data += f"{parts[0]}:{parts[1]}\n"
+                if parts[0] == dir_name:
+                    deleted_idx = int(parts[1])
+
+        # zmiana w datablock
+        self.data_blocks_table[block_idx].new_content(new_data)
+        print(self.data_blocks_table[block_idx].content)
+        # with open(self.file_name, 'r+b') as f:
+        #     # offset
+        #     f.read(self._data_block_offset(block_idx))
+        #     f.write(new_data.encode('utf-8'))
+
+        # self.inode_table[] -> trzeba zwolnić
+        self.inode_bitmap.realease_idx(deleted_idx)
+        self.inode_table[deleted_idx].data_blocks_idx = []
+        self.data_blocks_bitmap.realease_idx(deleted_idx)
+
+        # zmniejszyć rozmiar directory (o zawartosć wpisu)
+        self.superblock.decrease_num_of_files()
+
+    def add_to_directory(self, dir_inode_idx, filename, file_inode_idx=None):
+        if file_inode_idx is None:
+            file_inode_idx = self.inode_bitmap.find_free_inode_idx()
+        # znależć lub stworzyć datablock przyisany do dir_inode
+        entry = f"{filename}:{file_inode_idx}\n".encode('utf-8')
+        # znaleźć wolne miejsce w data block i dopisać
+        block_idx = self.inode_table[dir_inode_idx].data_blocks_idx[0]
+
+        with open(self.file_name, 'rb') as f:
+            f.read(self._data_block_offset(block_idx))
+            current_data = f.read(FileSystem.DATA_BLOCK_SIZE).rstrip(b'\x00')
+
+        new_data = current_data + entry
+        with open(self.file_name, 'r+b') as f:
+            f.read(self._data_block_offset(block_idx))
+            f.write(new_data)
+
+        # zwiększyć rozmiar directory (o zawartosć wpisu)
+        self.superblock.increase_num_of_files()
+
+
+    def read_from_directory(self, directory_inode_idx):
+        directory_inode = self.inode_table[directory_inode_idx]
+        block_idx = directory_inode.data_blocks_idx[0]
+
+        with open(self.file_name, 'rb') as f:
+            f.read(self._data_block_offset(block_idx))
+            self.data_blocks_table[block_idx].from_binary(f.read(FileSystem.DATA_BLOCK_SIZE))
+            directory_data = self.data_blocks_table[block_idx].content
+
         entries = []
         for entry in directory_data.rstrip(b'\x00').split(b'\n'):
             entry = entry.strip()
@@ -153,9 +201,35 @@ class FileSystem:
                 parts = entry.decode('utf-8').split(':')
                 if len(parts) == 2:
                     entries.append(parts)
-        print(entries)
+        # print(entries)
         return entries
 
+    def _find_file_idx_by_name(self, file_name):
+        entries = self.read_from_directory(self._current_directiory_idx)
+        for name, idx in entries:
+            if name == file_name:
+                return int(idx)
+
+        self.pwd()
+        raise ValueError("Nie ma takiego pliku w katologu")
+
+    def pwd(self):
+        print(f"Working direcotry: {self._current_directiory_name}")
+
+    def cd(self, dir_name):
+        dir_idx = self._find_file_idx_by_name(dir_name)
+        if dir_idx:
+            self._current_directiory_idx = dir_idx
+            self._current_directiory_name = dir_name
+            self.pwd()
+
+    def ls(self):
+        entries = self.read_from_directory(self._current_directiory_idx)
+        if entries:
+            file_names = [x[0] for x in entries]
+            print(file_names)
+        else:
+            print("empty")
 
     def alocate_data_blocks(self, file_data):
         pass
@@ -166,18 +240,27 @@ if __name__ == "__main__":
     # fs.create_new()
 
     fs.load_old()
-    fs.read_from_directory(1)
-    fs.create_directory("rootek2")
-    fs.read_from_directory(1)
-    fs.superblock.info()
-    fs.create_directory("home2")
-    fs.read_from_directory(1)
-    fs.superblock.info()
-    fs.add_to_directory(2, "bejbe2")
-    fs.add_to_directory(1, "bejbee2")
-    fs.read_from_directory(1)
-    fs.read_from_directory(2)
-    fs.superblock.info()
+    fs.pwd()
+    fs.ls()
+    # fs.create_directory("rootek2")
+    # fs.create_directory("rootek3")
+    fs.remove_directory("rootek3")
+    fs.pwd()
+    fs.ls()
+
+    # fs.read_from_directory(1)
+    # fs.superblock.info()
+    # fs.create_directory("home2")
+    # fs.read_from_directory(1)
+    # fs.superblock.info()
+    # fs.add_to_directory(2, "bejbe2")
+    # fs.add_to_directory(1, "bejbee2")
+    # fs.read_from_directory(1)
+    # fs.read_from_directory(2)
+    # fs.superblock.info()
+    # fs.remove_directory("home2")
+    # fs.read_from_directory(1)
+
     fs.save()
 
     pass
