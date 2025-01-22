@@ -128,7 +128,7 @@ class FileSystem:
         directory_data = self.data_blocks_table[block_idx].content
 
         new_data = ""
-        deleted_idx = 0
+        deleted_inode_idx = 0
         for entry in directory_data.rstrip(b'\x00').split(b'\n'):
             entry = entry.strip()
             if entry:
@@ -136,7 +136,7 @@ class FileSystem:
                 if parts[0] != file_name and len(parts) == 2:
                     new_data += f"{parts[0]}:{parts[1]}\n"
                 if parts[0] == file_name:
-                    deleted_idx = int(parts[1])
+                    deleted_inode_idx = int(parts[1])
 
         # zmiana w datablock
         self.data_blocks_table[block_idx].new_content(new_data)
@@ -144,12 +144,15 @@ class FileSystem:
 
 
         # self.inode_table[] -> trzeba zwolnić
-        if self.inode_table[deleted_idx].hard_links_counter == 0:
-            self.inode_bitmap.realease_idx(deleted_idx)
-            self.inode_table[deleted_idx].data_blocks_idx = []
-            self.data_blocks_bitmap.realease_idx(deleted_idx)
+        if self.inode_table[deleted_inode_idx].hard_links_counter == 0:
+            self.inode_bitmap.realease_idx(deleted_inode_idx)
+            all_blocks_idx = self.inode_table[deleted_inode_idx].data_blocks_idx
+            self.inode_table[deleted_inode_idx].data_blocks_idx = []
+            for block_idx in all_blocks_idx:
+                self.data_blocks_bitmap.realease_idx(block_idx)
+            self.data_blocks_bitmap.realease_idx(deleted_inode_idx)
         else:
-            self.inode_table[deleted_idx].hard_links_counter -= 1
+            self.inode_table[deleted_inode_idx].hard_links_counter -= 1
 
         # zmniejszyć rozmiar directory (o zawartosć wpisu)
         self.superblock.decrease_num_of_files()
@@ -335,22 +338,23 @@ if __name__ == "__main__":
     fs.load_old()
     fs.pwd()
     fs.ls()
-    # # fs.add_file("heloł.txt", "Witam was wszystkich")
-    # # fs.create_directory("rootek5")
-    # # fs.create_directory("rootek2")
-    # # fs.remove_directory("rootek1")
-    # # fs.pwd()
+    # # # fs.add_file("heloł.txt", "Witam was wszystkich")
+    # # # fs.create_directory("rootek5")
+    # # # fs.create_directory("rootek2")
+    # # # fs.remove_directory("rootek1")
+    # # # fs.pwd()
 
 
-    file = "/home/szczypawka/Nauka/Python/SOI/file_system/spongebob.png"
-    with open(file, "rb") as f:
-        file_content = f.read()
-        fs.add_file("spongi.png", file_content)
-    fs.ls()
+    # file = "/home/szczypawka/Nauka/Python/SOI/file_system/spongebob.png"
+    # with open(file, "rb") as f:
+    #     file_content = f.read()
+    #     fs.add_file("spongi.png", file_content)
+    # fs.ls()
     fs.copy_file_to_otside_system("spongi.png")
 
     print(fs.inode_table[2].data_blocks_idx)
-    # fs.remove_file("krabik20.png")
+    fs.remove_file("spongi.png")
+    print(fs.inode_table[2].data_blocks_idx)
     # fs.ls()
     # fs.create_hardlink("krabik2.png", "krabik_hard.png")
     # fs.ls()
