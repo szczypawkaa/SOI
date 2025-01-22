@@ -69,48 +69,48 @@ class Inode:
         # max blocks = max_file size // block size = 100
         self.created = datetime.now()
         self.last_modified = datetime.now()
-        self.is_directory = 1
+        self.is_directory = False
         self.size = 0
+        self.hard_links_counter = 0
         self.data_blocks_idx = []  #muszą być zapisane w odpowiedniej kolejności
         self._max_num_of_blocks = max_blocks
+
 
     def to_binary(self):
         max = self._max_num_of_blocks
         all_data_blocks = self.data_blocks_idx + [0] * (max - len(self.data_blocks_idx))
         return struct.pack(
-            f'20s20sII{max}I',
+            f'20s20s?II{max}I',
             self.created.strftime('%Y-%m-%d %H:%M:%S').ljust(20, '\x00').encode('utf-8'),
             self.last_modified.strftime('%Y-%m-%d %H:%M:%S').ljust(20, '\x00').encode('utf-8'),
             self.is_directory,
             self.size,
+            self.hard_links_counter,
             *all_data_blocks
         )
 
     def from_binary(self, data):
         max = self._max_num_of_blocks
-        created, last_mod, is_dir, size, *full_data_blocks = struct.unpack(f'20s20sII{max}I', data)
+        created, last_mod, is_dir, size, hard_links, *full_data_blocks = struct.unpack(f'20s20s?II{max}I', data)
 
         self.created = datetime.strptime(created.decode('utf-8').strip('\x00'), "%Y-%m-%d %H:%M:%S")
         self.last_modified = datetime.strptime(last_mod.decode('utf-8').strip('\x00'), "%Y-%m-%d %H:%M:%S")
         self.is_directory = is_dir
         self.size = size
+        self.hard_links_counter = hard_links
         self.data_blocks_idx = [x for x in full_data_blocks if x != 0]
 
     def get_size(self):
         """Oblicz rozmiar jednego i-node'a w bajtach."""
         # Format struktury: '20s20sI10I?' (jak w metodzie to_bytes/from_bytes)
         max = self._max_num_of_blocks
-        return struct.calcsize(f'20s20s?I{max}I')
+        return struct.calcsize(f'20s20s?II{max}I')
 
     def create_directory(self):
         # zmiana: last_modified, size, data_blocks_idx, is_dir
         self.created = datetime.now()
         self.last_modified = datetime.now()
         self.is_directory = True
-
-
-    # def chmod(self):
-    #     pass
 
 
 class Bitmap:
