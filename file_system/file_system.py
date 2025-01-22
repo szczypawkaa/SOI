@@ -123,7 +123,7 @@ class FileSystem:
     def remove_file(self, file_name, parent_inode_idx=1):
         # parent_inode to informacja z jakiego dir usuwamy
         parent_inode = self.inode_table[parent_inode_idx]
-        block_idx = parent_inode.data_blocks_idx[0]
+        block_idx = parent_inode.data_blocks_idx[0] # dir ma jeden blok
 
         directory_data = self.data_blocks_table[block_idx].content
 
@@ -138,12 +138,13 @@ class FileSystem:
                 if parts[0] == file_name:
                     deleted_inode_idx = int(parts[1])
 
+        if deleted_inode_idx == 0:
+            raise ValueError("Nie ma co usuwać")
+
         # zmiana w datablock
         self.data_blocks_table[block_idx].new_content(new_data)
         # print(self.data_blocks_table[block_idx].content)
 
-
-        # self.inode_table[] -> trzeba zwolnić
         if self.inode_table[deleted_inode_idx].hard_links_counter == 0:
             self.inode_bitmap.realease_idx(deleted_inode_idx)
             all_blocks_idx = self.inode_table[deleted_inode_idx].data_blocks_idx
@@ -330,6 +331,9 @@ class FileSystem:
         base_inode = self.inode_table[dir_idx]
         base_inode.hard_links_counter += 1
 
+    def add_n_bytes_to_file(self, filename):
+        pass
+
 
 if __name__ == "__main__":
     fs = FileSystem("/home/szczypawka/Nauka/Python/SOI/file_system/filesystem.bin")
@@ -350,13 +354,15 @@ if __name__ == "__main__":
     #     file_content = f.read()
     #     fs.add_file("spongi.png", file_content)
     # fs.ls()
-    fs.copy_file_to_otside_system("spongi.png")
+    # fs.copy_file_to_otside_system("spongi.png")
 
-    print(fs.inode_table[2].data_blocks_idx)
+    # print(fs.inode_table[2].data_blocks_idx)
+    # fs.create_hardlink("spongi.png", "spongi_hard.png")
+
     fs.remove_file("spongi.png")
     print(fs.inode_table[2].data_blocks_idx)
-    # fs.ls()
-    # fs.create_hardlink("krabik2.png", "krabik_hard.png")
-    # fs.ls()
-    # fs.copy_file_to_otside_system("krabik_hard.png")
+    fs.ls()
+
+    # # fs.ls()
+    fs.copy_file_to_otside_system("spongi_hard.png")
     fs.save()
