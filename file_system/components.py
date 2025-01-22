@@ -112,6 +112,8 @@ class Inode:
         self.last_modified = datetime.now()
         self.is_directory = True
 
+    def add_data_block_idx(self, idx):
+        self.data_blocks_idx.append(idx)
 
 class Bitmap:
     def __init__(self, size):

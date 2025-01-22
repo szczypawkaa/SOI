@@ -6,11 +6,12 @@ import copy
 
 class FileSystem:
     FILE_SYSTEM_SIZE = 100 * 1024 * 1024  # 100 MB
-    INODES_NUMBER = 1024
-    DATA_BLOCK_SIZE = 2 * 1024  # 2KB
-    DATA_BLOCKS_NUMBER = FILE_SYSTEM_SIZE // DATA_BLOCK_SIZE  # 50 * 1024
+    INODES_NUMBER = 512
+    DATA_BLOCK_SIZE = 4 * 1024  # 4KB
+    DATA_BLOCKS_NUMBER = FILE_SYSTEM_SIZE // DATA_BLOCK_SIZE  # 25 * 1024
     MAX_FILE_SIZE = 200 * 1024  # 200 KB
-    MAX_BLOCKS = MAX_FILE_SIZE // DATA_BLOCK_SIZE  # 100 KB
+    MAX_BLOCKS = MAX_FILE_SIZE // DATA_BLOCK_SIZE  # 25 -
+        # maksymalna ilość blokó które mogą być przypisane do jedngo i-node
 
     def __init__(self, file_name):
         self.file_name = file_name
@@ -22,26 +23,7 @@ class FileSystem:
 
         self._current_directiory_idx = 1  #root
         self._current_directiory_name = "root"
-        # self._data_blocks_offset = self._datablocks_offset()
 
-    def _data_block_offset(self, block_idx):
-        superblock_size = self.superblock.get_size()
-        inode_table_size = FileSystem.INODES_NUMBER * self.inode_table[0].get_size()
-        inode_bitmap_size = math.ceil(self.inode_bitmap.size / 8)
-        data_blocks_bitmap_size = math.ceil(self.data_blocks_bitmap.size / 8)
-
-        # przechodzę przez kolejne bloki danych, aż będę przed odpowiednim
-        blocks = block_idx * FileSystem.DATA_BLOCK_SIZE
-
-        total_offset = (
-            superblock_size +
-            inode_table_size +
-            inode_bitmap_size +
-            data_blocks_bitmap_size +
-            blocks
-        )
-
-        return total_offset
 
     def save(self):
         with open(self.file_name, 'wb') as fs:
@@ -87,38 +69,28 @@ class FileSystem:
 
 
     def create_root_dir(self):
+        # inode 0 w bitmapach są permamentnie zablokowane, ponieważ wolną przestrzeń
+        # dopełniam zerami, które potem są usuwane
         self.inode_bitmap.take_idx(0)
         self.data_blocks_bitmap.take_idx(0)
+        self._create_directory("root")
 
-        inode_idx = 1
-        data_block_idx = 1
-        # zajęcie inode
-        self.inode_bitmap.take_idx(inode_idx)
-
-        # dane dla inoda:
-        dir_inode = self.inode_table[inode_idx]
-        dir_inode.create_directory()
-
-        # zajęcie bloku danych
-        self.data_blocks_bitmap.take_idx(data_block_idx)
-        dir_inode.data_blocks_idx.append(data_block_idx)
-
-    def create_directory(self, dir_name, parent_inode_idx=1):
+    def _create_directory(self, dir_name):
         inode_idx = self.inode_bitmap.find_free_inode_idx()
         data_block_idx = self.data_blocks_bitmap.find_free_inode_idx()
-        # zajęcie inode
-        self.inode_bitmap.take_idx(inode_idx)
 
-        # dane dla inoda:
+        self.inode_bitmap.take_idx(inode_idx)
+        self.data_blocks_bitmap.take_idx(data_block_idx)
+
         dir_inode = self.inode_table[inode_idx]
         dir_inode.create_directory()
+        dir_inode.add_data_block_idx(data_block_idx)
 
-        # zajęcie bloku danych
-        self.data_blocks_bitmap.take_idx(data_block_idx)
-        dir_inode.data_blocks_idx.append(data_block_idx)
+        return inode_idx
 
-        # zwiększenie ilości plików w superbloku
-        self.add_to_directory(parent_inode_idx, dir_name, inode_idx)
+    def create_directory(self, dir_name):
+        inode_idx = self._create_directory(dir_name)
+        self.add_to_directory(dir_name, inode_idx)
 
     def remove_file(self, file_name, parent_inode_idx=1):
         # parent_inode to informacja z jakiego dir usuwamy
@@ -162,37 +134,19 @@ class FileSystem:
         if dir_name is None:
             dir_name = self._current_directiory_name
 
-        # parent_inode_idx = self._find_file_idx_by_name(dir_name)
-        parent_inode_idx = self._current_directiory_idx
-
         inode_idx = self.inode_bitmap.find_free_inode_idx()
 
         # zajęcie inode
         self.inode_bitmap.take_idx(inode_idx)
 
         # dane dla inoda:
-        # dir_inode = self.inode_table[inode_idx]
-        # dir_inode.create_directory()
         file_inode = self.inode_table[inode_idx]
 
-        # zajęcie bloku danych
-        """
-
-        # data_block_idx = self.data_blocks_bitmap.find_free_inode_idx()
-        # self.data_blocks_bitmap.take_idx(data_block_idx)
-        # file_inode.data_blocks_idx.append(data_block_idx)
-
-        # # dodanie do bloku danych treści
-
-        # # podział danych na części i przypis do bloków
-        # file_data_block = self.data_blocks_table[data_block_idx]
-        # file_data_block.new_content(file_data)
-        """
         allocated_blocks = self._alocate_data_blocks(file_data)
         file_inode.data_blocks_idx += allocated_blocks
 
         # zwiększenie ilości plików w superbloku
-        self.add_to_directory(parent_inode_idx, file_name, inode_idx)
+        self.add_to_directory(file_name, inode_idx)
 
     def _alocate_data_blocks(self, file_data, blocks_indexes=None):
         blocks_needed = (len(file_data) + FileSystem.DATA_BLOCK_SIZE - 1) // FileSystem.DATA_BLOCK_SIZE  # Zaokrąglenie w górę
@@ -224,24 +178,34 @@ class FileSystem:
 
         return blocks_indexes
 
-    def add_to_directory(self, dir_inode_idx, filename, file_inode_idx=None):
+    def add_to_directory(self, filename, file_inode_idx=None):
+        # dodaje do aktualnego katalogu
+
         if file_inode_idx is None:
             file_inode_idx = self.inode_bitmap.find_free_inode_idx()
-        # znależć lub stworzyć datablock przyisany do dir_inode
-        entry = f"{filename}:{file_inode_idx}\n"
-        # znaleźć wolne miejsce w data block i dopisać
 
+        dir_inode_idx = self._current_directiory_idx
         all_block_idx = self.inode_table[dir_inode_idx].data_blocks_idx
+        entry = f'{filename}:{file_inode_idx}\n'
+
+        current_data = self._read_file_content(dir_inode_idx)
+        new_data = current_data + entry
+
+        # to jest katalog, a więc miał już wcześniej przypisany blok danych
+        self._alocate_data_blocks(new_data, all_block_idx)
+
+        self.superblock.increase_num_of_files()
+        self.inode_table[dir_inode_idx].size += len(entry.encode('utf-8'))
+
+    def _read_file_content(self, inode_idx) -> str:
+        all_block_idx = self.inode_table[inode_idx].data_blocks_idx
+
         current_data = ''
         for block_idx in all_block_idx:
             block_data = self.data_blocks_table[block_idx].content
             current_data += block_data.rstrip(b'\x00').decode('utf-8')
-        new_data = current_data + entry
 
-        self._alocate_data_blocks(new_data, all_block_idx)
-        # to jest dir więc miał już wcześniej przypisane bloki danych, nie
-        # przypisuję do inode ponownie
-        self.superblock.increase_num_of_files()
+        return current_data
 
     def read_from_directory(self, directory_inode_idx):
         directory_inode = self.inode_table[directory_inode_idx]
@@ -267,18 +231,18 @@ class FileSystem:
             if name == file_name:
                 return int(idx)
 
-        # self.pwd()
         raise ValueError("Nie ma takiego pliku w katologu")
 
     def pwd(self):
-        print(f"Working direcotry: {self._current_directiory_name}")
+        print(f"Working directory: {self._current_directiory_name}")
 
     def cd(self, dir_name):
+        # aktualnie obsługuje tylko wchodzenie do następnych katalogów,
+        # nie można się cofnąć, trzeba od nowa uruchomić system plików
         dir_idx = self._find_file_idx_by_name(dir_name)
         if dir_idx:
             self._current_directiory_idx = dir_idx
             self._current_directiory_name = dir_name
-            self.pwd()
 
     def ls(self):
         entries = self.read_from_directory(self._current_directiory_idx)
@@ -295,19 +259,15 @@ class FileSystem:
         inode = self.inode_table[inode_idx]
         data_blocks_idx = inode.data_blocks_idx
         with open(outside_path, 'wb') as f:
-            # znależć file_idx
-            # znaleźć data_block idx
-            # znaleźć datablock z i wpisać tu
             for block_idx in data_blocks_idx:
                 block = self.data_blocks_table[block_idx]
                 f.write(block.content.rstrip(b'\x00'))
 
     def create_hardlink(self, base_file, copy_file):
-        dir_idx = self._current_directiory_idx
         base_file_idx = self._find_file_idx_by_name(base_file)
-        self.add_to_directory(dir_idx, copy_file, base_file_idx)
+        self.add_to_directory(copy_file, base_file_idx)
 
-        base_inode = self.inode_table[dir_idx]
+        base_inode = self.inode_table[self._current_directiory_idx]
         base_inode.hard_links_counter += 1
 
     def add_n_bytes_to_file(self, file_name, n):
@@ -315,20 +275,16 @@ class FileSystem:
         file_inode = self.inode_table[file_idx]
         all_block_idx = file_inode.data_blocks_idx
 
-        current_data = ''
-        for block_idx in all_block_idx:
-            block_data = self.data_blocks_table[block_idx].content
-            current_data += block_data.rstrip(b'\x00').decode('utf-8')
+        current_data = self._read_file_content(file_idx)
         extended_data = current_data + 'm' * n
 
-        # extended_filedata =
         extendend_file_blocks = self._alocate_data_blocks(extended_data, all_block_idx)
         # przypisać to do inoda
         new_data_blocks = [x for x in extendend_file_blocks if x not in all_block_idx]
         if new_data_blocks:
             for new_db in new_data_blocks:
                 file_inode.data_blocks_idx.append(new_db)
-
+        file_inode.size += n
 
     def add_n_bytes_only_size(self, file_name, n):
         pass
@@ -341,12 +297,14 @@ if __name__ == "__main__":
     fs.load_old()
     fs.pwd()
     fs.ls()
-    # # # fs.add_file("heloł.txt", "Witam was wszystkich")
-    # # # fs.create_directory("rootek5")
-    # # # fs.create_directory("rootek2")
-    # # # fs.remove_directory("rootek1")
-    # # # fs.pwd()
-
+    # fs.create_directory("rootek5")
+    # fs.ls()
+    # fs.cd("rootek5")
+    # fs.pwd()
+    # fs.ls()
+    # fs.add_file("inner_file.txt", "Witam z głębin")
+    # fs.pwd()
+    # fs.ls()
 
     # file = "/home/szczypawka/Nauka/Python/SOI/file_system/spongebob.png"
     # with open(file, "rb") as f:
@@ -355,17 +313,20 @@ if __name__ == "__main__":
     # fs.ls()
     # fs.copy_file_to_otside_system("spongi.png")
 
-    # fs.remove_file("spongi_hard.png")
+    # fs.create_hardlink("spongi.png", "spongie_copy.png")
+    # fs.remove_file("spongi.png")
+    # fs.ls()
     # fs.add_file("heloł.txt", "Witam was wszystkich")
     # fs.copy_file_to_otside_system("heloł.txt")
-    print(fs.inode_table[2].data_blocks_idx)
+    # print(fs.inode_table[2].data_blocks_idx)
     # fs.create_hardlink("heloł.txt", "heloł_copy.txt")
 
     # fs.add_n_bytes_to_file("heloł_copy.txt", 5000)
-    print(fs.inode_table[2].data_blocks_idx)
 
-    # # #
-    fs.copy_file_to_otside_system("heloł_copy.txt")
+    # print(fs.inode_table[4].data_blocks_idx)
+
+    # # # #
+    # fs.copy_file_to_otside_system("heloł_copy.txt")
 
     # print(fs.inode_table[2].data_blocks_idx)
     # fs.ls()
