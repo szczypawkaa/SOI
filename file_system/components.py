@@ -165,14 +165,3 @@ class DataBlock:
             self.content = n_content + b'\x00' * (self.size - len(n_content))
         else:
             raise ValueError("n_content must be of type str or bytes")
-
-    #     n_content = n_content.encode('utf-8')  # Konwertuj na bajty
-    # elif not isinstance(n_content, bytes):
-    #     raise ValueError("Expected a string or bytes as input for new_content")
-
-    # # Wypełnij zerami do pełnego rozmiaru bloku
-    # self.content = n_content + b'\x00' * (self.size - len(n_content))
-
-
-        # encoded = n_content.encode('utf-8')
-        # self.content = encoded + b'\x00' * (self.size - len(encoded))

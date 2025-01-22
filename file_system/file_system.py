@@ -195,16 +195,6 @@ class FileSystem:
         self.add_to_directory(parent_inode_idx, file_name, inode_idx)
 
     def _alocate_data_blocks(self, file_data, blocks_indexes=None):
-        # filedata w bajtach
-        # data_block_idx = self.data_blocks_bitmap.find_free_inode_idx()
-        # self.data_blocks_bitmap.take_idx(data_block_idx)
-
-        # # dodanie do bloku danych treści
-
-        # # podział danych na części i przypis do bloków
-        # file_data_block = self.data_blocks_table[data_block_idx]
-        # file_data_block.new_content(file_data)
-
         blocks_needed = (len(file_data) + FileSystem.DATA_BLOCK_SIZE - 1) // FileSystem.DATA_BLOCK_SIZE  # Zaokrąglenie w górę
 
         if blocks_indexes is None:
@@ -223,6 +213,7 @@ class FileSystem:
                 block_index = self.data_blocks_bitmap.find_free_inode_idx()
                 if block_index == -1:
                     raise Exception("Brak dostępnych bloków danych")
+                self.data_blocks_bitmap.take_idx(block_index)
                 blocks_indexes_copy.append(block_index)
             blocks_indexes = blocks_indexes_copy
 
@@ -247,22 +238,10 @@ class FileSystem:
             current_data += block_data.rstrip(b'\x00').decode('utf-8')
         new_data = current_data + entry
 
-        # self.data_blocks_table[block_idx].new_content(new_data)
         self._alocate_data_blocks(new_data, all_block_idx)
-
-        # zwiększyć rozmiar directory (o zawartosć wpisu)
+        # to jest dir więc miał już wcześniej przypisane bloki danych, nie
+        # przypisuję do inode ponownie
         self.superblock.increase_num_of_files()
-
-        # block_idx = self.inode_table[dir_inode_idx].data_blocks_idx[0]
-
-        # current_data = self.data_blocks_table[block_idx].content
-        # current_data = current_data.rstrip(b'\x00').decode('utf-8')
-        # new_data = current_data + entry
-
-        # self.data_blocks_table[block_idx].new_content(new_data)
-
-        # # zwiększyć rozmiar directory (o zawartosć wpisu)
-        # self.superblock.increase_num_of_files()
 
     def read_from_directory(self, directory_inode_idx):
         directory_inode = self.inode_table[directory_inode_idx]
@@ -331,7 +310,27 @@ class FileSystem:
         base_inode = self.inode_table[dir_idx]
         base_inode.hard_links_counter += 1
 
-    def add_n_bytes_to_file(self, filename):
+    def add_n_bytes_to_file(self, file_name, n):
+        file_idx = self._find_file_idx_by_name(file_name)
+        file_inode = self.inode_table[file_idx]
+        all_block_idx = file_inode.data_blocks_idx
+
+        current_data = ''
+        for block_idx in all_block_idx:
+            block_data = self.data_blocks_table[block_idx].content
+            current_data += block_data.rstrip(b'\x00').decode('utf-8')
+        extended_data = current_data + 'm' * n
+
+        # extended_filedata =
+        extendend_file_blocks = self._alocate_data_blocks(extended_data, all_block_idx)
+        # przypisać to do inoda
+        new_data_blocks = [x for x in extendend_file_blocks if x not in all_block_idx]
+        if new_data_blocks:
+            for new_db in new_data_blocks:
+                file_inode.data_blocks_idx.append(new_db)
+
+
+    def add_n_bytes_only_size(self, file_name, n):
         pass
 
 
@@ -356,13 +355,21 @@ if __name__ == "__main__":
     # fs.ls()
     # fs.copy_file_to_otside_system("spongi.png")
 
-    # print(fs.inode_table[2].data_blocks_idx)
-    # fs.create_hardlink("spongi.png", "spongi_hard.png")
-
-    fs.remove_file("spongi.png")
+    # fs.remove_file("spongi_hard.png")
+    # fs.add_file("heloł.txt", "Witam was wszystkich")
+    # fs.copy_file_to_otside_system("heloł.txt")
     print(fs.inode_table[2].data_blocks_idx)
-    fs.ls()
+    # fs.create_hardlink("heloł.txt", "heloł_copy.txt")
 
-    # # fs.ls()
-    fs.copy_file_to_otside_system("spongi_hard.png")
+    # fs.add_n_bytes_to_file("heloł_copy.txt", 5000)
+    print(fs.inode_table[2].data_blocks_idx)
+
+    # # #
+    fs.copy_file_to_otside_system("heloł_copy.txt")
+
+    # print(fs.inode_table[2].data_blocks_idx)
+    # fs.ls()
+
+    # # # fs.ls()
+    # fs.copy_file_to_otside_system("spongi_hard.png")
     fs.save()
