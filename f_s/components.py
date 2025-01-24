@@ -2,9 +2,6 @@ import struct
 from datetime import datetime
 import math
 
-NUM_OF_INODES = 1024
-BYTES = 8
-
 
 class Superblock:
     def __init__(self, fs_size):
@@ -15,7 +12,7 @@ class Superblock:
 
         self.num_of_files = 0
         self.last_modified = datetime.now()
-        self.free_space = fs_size  #w bajtach
+        self.free_space = fs_size   #w bajtach
 
     def to_binary(self):
         return struct.pack(
@@ -54,12 +51,12 @@ class Superblock:
         self.num_of_files -= 1
         self.update_last_modified()
 
-    def release_memory_after_file(self, size):
+    def increase_free_space(self, size):
         self.free_space += size
         self.update_last_modified()
 
-    def take_memory_for_file(self, size):
-        self.free_space -= size
+    def decrease_free_space(self, file_size):
+        self.free_space -= file_size
         self.update_last_modified()
 
 
@@ -70,11 +67,10 @@ class Inode:
         self.created = datetime.now()
         self.last_modified = datetime.now()
         self.is_directory = False
-        self.size = 0
+        self.size = 0  #informacja o rozmiarze pliku
         self.hard_links_counter = 0
         self.data_blocks_idx = []  #muszą być zapisane w odpowiedniej kolejności
         self._max_num_of_blocks = max_blocks
-
 
     def to_binary(self):
         max = self._max_num_of_blocks
